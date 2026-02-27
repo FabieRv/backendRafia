@@ -16,17 +16,27 @@ exports.AuthController = void 0;
 const auth_service_1 = require("./auth.service");
 const common_1 = require("@nestjs/common");
 let AuthController = class AuthController {
-    AuthService;
-    constructor(AuthService) {
-        this.AuthService = AuthService;
+    authService;
+    constructor(authService) {
+        this.authService = authService;
+    }
+    async register(authRegister) {
+        return this.authService.register(authRegister);
     }
     async login(authBody) {
-        return await this.AuthService.login({
+        return await this.authService.login({
             authBody,
         });
     }
 };
 exports.AuthController = AuthController;
+__decorate([
+    (0, common_1.Post)('register'),
+    __param(0, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", Promise)
+], AuthController.prototype, "register", null);
 __decorate([
     (0, common_1.Post)('login'),
     __param(0, (0, common_1.Body)()),

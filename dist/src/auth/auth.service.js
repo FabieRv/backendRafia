@@ -45,34 +45,55 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.AuthService = void 0;
 const common_1 = require("@nestjs/common");
 const prisma_service_1 = require("../user/prisma.service");
-const console_1 = require("console");
 const bcrypt = __importStar(require("bcryptjs"));
 let AuthService = class AuthService {
     prisma;
     constructor(prisma) {
         this.prisma = prisma;
     }
+    async register(authRegister) {
+        const { name, email, password, phone, adress } = authRegister;
+        const hashedPassword = await bcrypt.hash(password, 10);
+        const newUser = await this.prisma.user.create({
+            data: {
+                name,
+                email,
+                adress,
+                phone,
+                password: hashedPassword,
+            },
+        });
+        const { password: _, ...userWithoutPassword } = newUser;
+        return userWithoutPassword;
+    }
     async login({ authBody }) {
         const { email, password } = authBody;
-        const hasPassword = await this.hasPassword({ password });
-        console.log({ hasPassword, password });
+        const hasPassword = await this.hasPassword(password);
+        console.log({ hasPassword, password, email });
         const existingUser = await this.prisma.user.findUnique({
             where: {
-                email: authBody.email,
+                email: email,
             },
         });
         if (!existingUser) {
-            throw new Error("l'utilisateur n'existe pas");
+            throw new common_1.NotFoundException("l'utilisateur n'existe pas");
         }
-        const isPasswordSame = password === existingUser.password;
-        if (!isPasswordSame) {
-            return new console_1.error('le mit de pass est invalide');
+        const isPasswordValid = await this.isPasswordValid(password, existingUser.password);
+        if (!isPasswordValid) {
+            throw new common_1.UnauthorizedException('le mot de pass est invalide');
         }
         return existingUser;
     }
-    async hasPassword({ password }) {
-        const hasPassword = await bcrypt.hash(password, 10);
-        return password;
+    async hasPassword(password) {
+        const hashedPassword = await bcrypt.hash(password, 10);
+        return hashedPassword;
+    }
+    async isPasswordValid(password, hashedPassword) {
+        console.log('password :' + password);
+        console.log('hashedPassword :' + hashedPassword);
+        console.log('mot de passe hashe ' + (await bcrypt.hash(password, 10)));
+        const isPasswordValid = await bcrypt.compare(password, hashedPassword);
+        return isPasswordValid;
     }
 };
 exports.AuthService = AuthService;

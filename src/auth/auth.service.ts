@@ -1,5 +1,9 @@
-import { Injectable } from '@nestjs/common';
-import { AuthBody } from './auth.controller';
+import {
+  Injectable,
+  NotFoundException,
+  UnauthorizedException,
+} from '@nestjs/common';
+import { AuthBody, CreateUser } from './auth.controller';
 import { PrismaService } from 'src/user/prisma.service';
 import { error } from 'console';
 import * as bcrypt from 'bcryptjs';
@@ -8,31 +12,54 @@ import * as bcrypt from 'bcryptjs';
 export class AuthService {
   constructor(private readonly prisma: PrismaService) {}
 
+  async register(authRegister: CreateUser) {
+    const { name, email, password, phone, adress } = authRegister;
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const newUser = await this.prisma.user.create({
+      data: {
+        name,
+        email,
+        adress,
+        phone,
+        password: hashedPassword,
+      },
+    });
+
+    const { password: _, ...userWithoutPassword } = newUser;
+    return userWithoutPassword;
+  }
+
   async login({ authBody }: { authBody: AuthBody }) {
     const { email, password } = authBody;
-    const hasPassword = await this.hasPassword({ password });
-    console.log({ hasPassword, password });
+    const hasPassword = await this.hasPassword(password);
 
     const existingUser = await this.prisma.user.findUnique({
       where: {
-        email: authBody.email,
+        email: email,
       },
     });
 
     if (!existingUser) {
-      throw new Error("l'utilisateur n'existe pas");
+      throw new NotFoundException("l'utilisateur n'existe pas");
     }
+    const isPasswordValid = await this.isPasswordValid(
+      password,
+      existingUser.password,
+    );
 
-    const isPasswordSame = password === existingUser.password;
-    if (!isPasswordSame) {
-      return new error('le mit de pass est invalide');
+    if (!isPasswordValid) {
+      throw new UnauthorizedException('le mot de pass est invalide');
     }
-
     return existingUser;
   }
 
-  private async hasPassword({ password }: { password: string }) {
-    const hasPassword = await bcrypt.hash(password, 10);
-    return password;
+  private async hasPassword(password: string) {
+    const hashedPassword = await bcrypt.hash(password, 10);
+    return hashedPassword;
+  }
+
+  private async isPasswordValid(password: string, hashedPassword: string) {
+    const isPasswordValid = await bcrypt.compare(password, hashedPassword);
+    return isPasswordValid;
   }
 }
