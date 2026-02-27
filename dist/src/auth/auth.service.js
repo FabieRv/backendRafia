@@ -41,15 +41,20 @@ var __importStar = (this && this.__importStar) || (function () {
 var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
+var _a;
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.AuthService = void 0;
 const common_1 = require("@nestjs/common");
 const prisma_service_1 = require("../user/prisma.service");
 const bcrypt = __importStar(require("bcryptjs"));
+const jwt_1 = require("@nestjs/jwt");
 let AuthService = class AuthService {
     prisma;
-    constructor(prisma) {
+    jwtService;
+    constructor(prisma, jwtService) {
         this.prisma = prisma;
+        this.jwtService = jwtService;
+        console.log('JWT SERVICE READY');
     }
     async register(authRegister) {
         const { name, email, password, phone, adress } = authRegister;
@@ -69,7 +74,6 @@ let AuthService = class AuthService {
     async login({ authBody }) {
         const { email, password } = authBody;
         const hasPassword = await this.hasPassword(password);
-        console.log({ hasPassword, password, email });
         const existingUser = await this.prisma.user.findUnique({
             where: {
                 email: email,
@@ -82,23 +86,28 @@ let AuthService = class AuthService {
         if (!isPasswordValid) {
             throw new common_1.UnauthorizedException('le mot de pass est invalide');
         }
-        return existingUser;
+        return this.authenticateUser({
+            userId: existingUser.id,
+        });
     }
     async hasPassword(password) {
         const hashedPassword = await bcrypt.hash(password, 10);
         return hashedPassword;
     }
     async isPasswordValid(password, hashedPassword) {
-        console.log('password :' + password);
-        console.log('hashedPassword :' + hashedPassword);
-        console.log('mot de passe hashe ' + (await bcrypt.hash(password, 10)));
         const isPasswordValid = await bcrypt.compare(password, hashedPassword);
         return isPasswordValid;
+    }
+    async authenticateUser({ userId }) {
+        const payload = { userId };
+        return {
+            access_token: await this.jwtService.sign(payload),
+        };
     }
 };
 exports.AuthService = AuthService;
 exports.AuthService = AuthService = __decorate([
     (0, common_1.Injectable)(),
-    __metadata("design:paramtypes", [prisma_service_1.PrismaService])
+    __metadata("design:paramtypes", [prisma_service_1.PrismaService, typeof (_a = typeof jwt_1.JwtService !== "undefined" && jwt_1.JwtService) === "function" ? _a : Object])
 ], AuthService);
 //# sourceMappingURL=auth.service.js.map

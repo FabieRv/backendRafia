@@ -3,14 +3,20 @@ import {
   NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
+
 import { AuthBody, CreateUser } from './auth.controller';
 import { PrismaService } from 'src/user/prisma.service';
-import { error } from 'console';
 import * as bcrypt from 'bcryptjs';
+import { JwtService } from '@nestjs/jwt';
 
 @Injectable()
 export class AuthService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private jwtService: JwtService,
+  ) {
+    console.log('JWT SERVICE READY');
+  }
 
   async register(authRegister: CreateUser) {
     const { name, email, password, phone, adress } = authRegister;
@@ -50,7 +56,10 @@ export class AuthService {
     if (!isPasswordValid) {
       throw new UnauthorizedException('le mot de pass est invalide');
     }
-    return existingUser;
+    return this.authenticateUser({
+      userId: existingUser.id,
+    });
+    // console.log({ secret: process.env.JWT_SECRET });
   }
 
   private async hasPassword(password: string) {
@@ -61,5 +70,12 @@ export class AuthService {
   private async isPasswordValid(password: string, hashedPassword: string) {
     const isPasswordValid = await bcrypt.compare(password, hashedPassword);
     return isPasswordValid;
+  }
+
+  private async authenticateUser({ userId }: { userId: number }) {
+    const payload = { userId };
+    return {
+      access_token: await this.jwtService.sign(payload),
+    };
   }
 }

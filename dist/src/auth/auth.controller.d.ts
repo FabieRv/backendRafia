@@ -24,14 +24,6 @@ export declare class AuthController {
         id: number;
     }>;
     login(authBody: AuthBody): Promise<{
-        name: string;
-        email: string;
-        password: string;
-        phone: string;
-        adress: string;
-        role: import("@prisma/client").$Enums.Role;
-        createdAt: Date;
-        updatedAt: Date | null;
-        id: number;
+        access_token: any;
     }>;
 }
